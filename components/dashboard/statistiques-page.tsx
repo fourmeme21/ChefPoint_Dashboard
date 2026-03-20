@@ -41,8 +41,8 @@ export function StatistiquesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="font-serif text-3xl text-[#C9A84C]">Statistiques</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-serif text-2xl md:text-3xl text-[#C9A84C]">Statistiques</h1>
         <div className="flex items-center gap-2 bg-[#1A160E] p-1 rounded-lg">
           {[
             { id: "aujourdhui" as const, label: "Aujourd'hui" },
@@ -69,14 +69,14 @@ export function StatistiquesPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-6">
           <p className="text-[#A89968] text-sm uppercase tracking-wide mb-2">Chiffre d&apos;affaires</p>
-          <p className="text-[#C9A84C] text-5xl font-bold">1.240 DH</p>
+          <p className="text-[#C9A84C] text-4xl md:text-5xl font-bold">1.240 DH</p>
           <p className="text-[#4CAF50] text-sm mt-2 flex items-center gap-1">
             <span>↑</span> +12% vs hier
           </p>
         </div>
         <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-6">
           <p className="text-[#A89968] text-sm uppercase tracking-wide mb-2">Total commandes</p>
-          <p className="text-[#C9A84C] text-5xl font-bold">18</p>
+          <p className="text-[#C9A84C] text-4xl md:text-5xl font-bold">18</p>
           <p className="text-[#A89968] text-sm mt-2">moy. 69 DH/cmd</p>
         </div>
         <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-6">
@@ -138,7 +138,7 @@ export function StatistiquesPage() {
           <div className="space-y-4">
             {productSales.map((product) => (
               <div key={product.name} className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{product.emoji}</span>
                     <span className="text-[#F5EDD8]">{product.name}</span>
