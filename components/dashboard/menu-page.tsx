@@ -84,7 +84,7 @@ export function MenuPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-3xl text-[#C9A84C]">Gestion du Menu</h1>
         
         {/* Brand Selector */}
@@ -123,7 +123,7 @@ export function MenuPage() {
             key={category.id}
             onClick={() => setActiveCategory(category.id)}
             className={cn(
-              "px-6 py-2.5 rounded-lg text-sm font-medium uppercase tracking-wide transition-all",
+              "px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium uppercase tracking-wide transition-all",
               activeCategory === category.id
                 ? "bg-[#C9A84C] text-[#0E0C08]"
                 : "text-[#A89968] hover:text-[#F5EDD8]"
@@ -139,57 +139,58 @@ export function MenuPage() {
         {filteredProducts.map((product) => (
           <div 
             key={product.id}
-            className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-4 flex items-center gap-4 hover:border-[rgba(201,168,76,0.3)] transition-colors"
+            className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-4 hover:border-[rgba(201,168,76,0.3)] transition-colors"
           >
-            {/* Emoji Avatar */}
-            <div className="w-16 h-16 bg-[rgba(201,168,76,0.15)] rounded-full flex items-center justify-center text-3xl flex-shrink-0">
-              {product.emoji}
-            </div>
-
-            {/* Product Info */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-[#F5EDD8] font-bold text-lg">{product.name}</h3>
-              <p className="text-[#A89968] text-sm truncate">{product.description}</p>
-            </div>
-
-            {/* Price */}
-            <div className="flex items-center gap-2">
-              <span className="text-[#C9A84C] text-xl font-bold">{product.price} DH</span>
-              <button className="p-1.5 text-[#A89968] hover:text-[#C9A84C] transition-colors">
-                <Pencil className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Weight */}
-            <span className="text-[#A89968] text-sm w-16 text-center">{product.weight}</span>
-
-            {/* Availability Toggle */}
+            {/* Mobile: stacked | Desktop: single row */}
             <div className="flex items-center gap-3">
+              {/* Emoji Avatar */}
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-[rgba(201,168,76,0.15)] rounded-full flex items-center justify-center text-2xl md:text-3xl flex-shrink-0">
+                {product.emoji}
+              </div>
+
+              {/* Product Info */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-[#F5EDD8] font-bold text-base md:text-lg">{product.name}</h3>
+                <p className="text-[#A89968] text-xs md:text-sm truncate">{product.description}</p>
+              </div>
+
+              {/* Toggle — always visible */}
               <button
                 onClick={() => toggleAvailability(product.id)}
                 className={cn(
-                  "w-14 h-7 rounded-full transition-colors relative",
+                  "w-12 h-6 md:w-14 md:h-7 rounded-full transition-colors relative flex-shrink-0",
                   product.available ? "bg-[#C9A84C]" : "bg-[#333]"
                 )}
               >
                 <span 
                   className={cn(
-                    "absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow",
-                    product.available ? "left-8" : "left-1"
+                    "absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow",
+                    product.available ? "left-6 md:left-8" : "left-0.5 md:left-1"
                   )}
                 />
               </button>
-              {!product.available && (
-                <span className="text-[#E84A5F] text-xs font-bold uppercase bg-[#E84A5F]/20 px-2 py-1 rounded">
-                  Rupture de stock
-                </span>
-              )}
             </div>
 
-            {/* Edit Button */}
-            <button className="p-2.5 bg-[rgba(201,168,76,0.15)] text-[#C9A84C] rounded-lg hover:bg-[rgba(201,168,76,0.25)] transition-colors">
-              <Pencil className="w-5 h-5" />
-            </button>
+            {/* Bottom row: price + weight + stock + edit */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-[rgba(201,168,76,0.08)]">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1">
+                  <span className="text-[#C9A84C] text-lg font-bold">{product.price} DH</span>
+                  <button className="p-1 text-[#A89968] hover:text-[#C9A84C] transition-colors">
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                </div>
+                <span className="text-[#A89968] text-sm">{product.weight}</span>
+                {!product.available && (
+                  <span className="text-[#E84A5F] text-xs font-bold uppercase bg-[#E84A5F]/20 px-2 py-0.5 rounded">
+                    Rupture de stock
+                  </span>
+                )}
+              </div>
+              <button className="p-2 bg-[rgba(201,168,76,0.15)] text-[#C9A84C] rounded-lg hover:bg-[rgba(201,168,76,0.25)] transition-colors flex-shrink-0">
+                <Pencil className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
