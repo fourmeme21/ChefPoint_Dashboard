@@ -12,6 +12,34 @@ type Category = "bowls" | "boissons" | "extras"
 
 const EMOJIS = ["🥗","🌶️","🥬","👑","🍔","🍕","🌯","🍰","🥤","💧","🍊","🥫","🍗","🥙","🧆"]
 
+// Fotoğrafı 1080x1080 kare olarak kırpar ve sıkıştırır
+async function resizeAndCrop(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const size = 1080
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('Canvas error'))
+      // Merkez kırpma
+      const srcSize = Math.min(img.width, img.height)
+      const srcX = (img.width - srcSize) / 2
+      const srcY = (img.height - srcSize) / 2
+      ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, size, size)
+      canvas.toBlob((blob) => {
+        if (!blob) return reject(new Error('Blob error'))
+        resolve(new File([blob], 'photo.jpg', { type: 'image/jpeg', lastModified: Date.now() }))
+      }, 'image/jpeg', 0.85)
+    }
+    img.onerror = reject
+    img.src = url
+  })
+}
+
 export function MenuPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -85,22 +113,31 @@ export function MenuPage() {
     setShowAddModal(true)
   }
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Fotoğraf seçilince 1080x1080 kırpma uygula
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setImageFile(file)
-    const reader = new FileReader()
-    reader.onload = () => setImagePreview(reader.result as string)
-    reader.readAsDataURL(file)
+    setUploadingImage(true)
+    try {
+      const resized = await resizeAndCrop(file)
+      setImageFile(resized)
+      const reader = new FileReader()
+      reader.onload = () => setImagePreview(reader.result as string)
+      reader.readAsDataURL(resized)
+    } catch {
+      // Hata olursa orijinal dosyayı kullan
+      setImageFile(file)
+      const reader = new FileReader()
+      reader.onload = () => setImagePreview(reader.result as string)
+      reader.readAsDataURL(file)
+    }
+    setUploadingImage(false)
   }
 
   const uploadImage = async (productId: string): Promise<string | null> => {
     if (!imageFile) return null
-    setUploadingImage(true)
-    const ext = imageFile.name.split('.').pop()
-    const path = `products/${productId}.${ext}`
-    const { error } = await supabase.storage.from('menu-images').upload(path, imageFile, { upsert: true })
-    setUploadingImage(false)
+    const path = `products/${productId}.jpg`
+    const { error } = await supabase.storage.from('menu-images').upload(path, imageFile, { upsert: true, contentType: 'image/jpeg' })
     if (error) return null
     const { data } = supabase.storage.from('menu-images').getPublicUrl(path)
     return data.publicUrl
@@ -122,10 +159,8 @@ export function MenuPage() {
     }
 
     if (editingProduct) {
-      // Önce güncelle
       const { data } = await supabase.from('products').update(payload).eq('id', editingProduct.id).select().single()
       if (data) {
-        // Sonra fotoğraf yükle
         if (imageFile) {
           const url = await uploadImage(data.id)
           if (url) {
@@ -222,7 +257,6 @@ export function MenuPage() {
           filteredProducts.map((product) => (
             <div key={product.id} className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-4 hover:border-[rgba(201,168,76,0.3)] transition-colors">
               <div className="flex items-center gap-3">
-                {/* Image or Emoji */}
                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden flex-shrink-0">
                   {product.image_url ? (
                     <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
@@ -293,21 +327,25 @@ export function MenuPage() {
 
             {/* Photo Upload */}
             <div>
-              <label className="text-[#A89968] text-xs uppercase tracking-wide mb-2 block">Photo</label>
+              <label className="text-[#A89968] text-xs uppercase tracking-wide mb-2 block">
+                Photo <span className="normal-case text-[#6B5B3D]">(auto 1080×1080)</span>
+              </label>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
               <button onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-[rgba(201,168,76,0.3)] rounded-xl overflow-hidden hover:border-[#C9A84C] transition-colors relative">
+                className="w-full h-40 border-2 border-dashed border-[rgba(201,168,76,0.3)] rounded-xl overflow-hidden hover:border-[#C9A84C] transition-colors relative">
                 {imagePreview ? (
                   <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full gap-2 text-[#A89968]">
                     <ImagePlus className="w-8 h-8" />
                     <span className="text-sm">Ajouter une photo</span>
+                    <span className="text-xs text-[#6B5B3D]">Sera recadrée en carré 1080×1080</span>
                   </div>
                 )}
                 {uploadingImage && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2">
                     <Loader2 className="w-6 h-6 animate-spin text-[#C9A84C]" />
+                    <span className="text-[#C9A84C] text-xs">Recadrage en cours...</span>
                   </div>
                 )}
               </button>
