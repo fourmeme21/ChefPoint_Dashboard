@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, BellOff, Printer, MessageCircle, Plus, X, Check, Loader2 } from "lucide-react"
+import { Bell, BellOff, Printer, MessageCircle, Plus, X, Check, Loader2, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -22,6 +22,7 @@ export function CommandesPage() {
 
   // Manuel sipariş
   const [showModal, setShowModal] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState<Order | null>(null)
   const [saving, setSaving] = useState(false)
   const [brands, setBrands] = useState<Brand[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -186,6 +187,13 @@ export function CommandesPage() {
     setShowModal(false)
   }
 
+  const cancelOrder = async (order: Order) => {
+    setOrders(prev => prev.filter(o => o.id !== order.id))
+    await supabase.from("orders").update({ status: "annule", updated_at: new Date().toISOString() }).eq("id", order.id)
+    await supabase.from("order_status_log").insert({ order_id: order.id, order_status: "annule" })
+    setConfirmCancel(null)
+  }
+
   const stats = {
     enAttente: orders.filter(o => o.status === "nouveau").length,
     enPreparation: orders.filter(o => o.status === "en_preparation").length,
@@ -296,8 +304,8 @@ export function CommandesPage() {
                     className="p-2.5 bg-[#25D366] text-white rounded-lg hover:bg-[#1DA851] transition-colors">
                     <MessageCircle className="w-5 h-5" />
                   </a>
-                  <button className="p-2.5 bg-[#1A160E] border border-[rgba(201,168,76,0.15)] text-[#A89968] rounded-lg hover:text-[#C9A84C] transition-colors">
-                    <Printer className="w-5 h-5" />
+                  <button onClick={() => setConfirmCancel(order)} className="p-2.5 bg-[rgba(232,74,95,0.15)] text-[#E84A5F] rounded-lg hover:bg-[rgba(232,74,95,0.25)] transition-colors">
+                    <XCircle className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -459,6 +467,28 @@ export function CommandesPage() {
                 className="w-full py-3 bg-[#C9A84C] text-[#0E0C08] font-bold rounded-xl hover:bg-[#B8973B] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
                 {saving ? "Enregistrement..." : `Confirmer — ${totalAmount} DH`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* İptal Onay Modalı */}
+      {confirmCancel && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1A160E] border border-[rgba(232,74,95,0.3)] rounded-2xl w-full max-w-sm p-6 space-y-4">
+            <h2 className="font-serif text-xl text-[#E84A5F]">Annuler la commande ?</h2>
+            <p className="text-[#A89968]">
+              <span className="text-[#F5EDD8] font-medium">{confirmCancel.order_number}</span> — {confirmCancel.customer_name}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmCancel(null)}
+                className="flex-1 py-3 bg-[#0E0C08] border border-[rgba(201,168,76,0.15)] text-[#A89968] rounded-xl hover:text-[#F5EDD8] transition-colors">
+                Garder
+              </button>
+              <button onClick={() => cancelOrder(confirmCancel)}
+                className="flex-1 py-3 bg-[#E84A5F] text-white font-bold rounded-xl hover:bg-[#D03A4F] transition-colors flex items-center justify-center gap-2">
+                <XCircle className="w-4 h-4" /> Annuler
               </button>
             </div>
           </div>
