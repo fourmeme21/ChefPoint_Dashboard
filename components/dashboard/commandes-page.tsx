@@ -73,7 +73,7 @@ export function CommandesPage() {
   }
 
   const fetchProducts = async (brandId: string) => {
-    const { data } = await supabase.from('products').select('*').eq('brand_id', brandId).eq('available', true).order('category')
+    const { data } = await supabase.from('products').select('*').eq('brand_id', brandId).order('category').order('name')
     if (data) setProducts(data)
   }
 
@@ -146,7 +146,7 @@ export function CommandesPage() {
     })
   }
 
-  const totalAmount = orderItems.reduce((sum, i) => sum + parseFloat(String(i.product.price)) * i.quantity, 0)
+  const totalAmount = orderItems.reduce((sum, i) => sum + Number(i.product.price) * i.quantity, 0)
 
   const saveOrder = async () => {
     if (!form.customer_name || !form.customer_phone || !selectedBrand || orderItems.length === 0) return
@@ -176,8 +176,8 @@ export function CommandesPage() {
           product_id: i.product.id,
           product_name: i.product.name,
           quantity: i.quantity,
-          unit_price: parseFloat(String(i.product.price)),
-          subtotal: parseFloat(String(i.product.price)) * i.quantity
+          unit_price: Number(i.product.price),
+          subtotal: Number(i.product.price) * i.quantity
         }))
       )
     }
