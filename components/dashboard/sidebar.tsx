@@ -1,217 +1,105 @@
 "use client"
 
-import { useState } from "react"
+import { UtensilsCrossed, BarChart2, BookOpen, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts"
 
-const hourlyData = [
-  { hour: "10h", revenue: 120 },
-  { hour: "11h", revenue: 85 },
-  { hour: "12h", revenue: 210 },
-  { hour: "13h", revenue: 340 },
-  { hour: "14h", revenue: 180 },
-  { hour: "15h", revenue: 90 },
-  { hour: "16h", revenue: 65 },
-  { hour: "17h", revenue: 120 },
-  { hour: "18h", revenue: 250 },
-  { hour: "19h", revenue: 380 },
-  { hour: "20h", revenue: 290 },
-  { hour: "21h", revenue: 150 },
-  { hour: "22h", revenue: 60 }
+type NavItem = "commandes" | "statistiques" | "menu" | "clients"
+
+interface SidebarProps {
+  activeNav: NavItem
+  onNavChange: (nav: NavItem) => void
+  pendingOrders?: number
+}
+
+const navItems = [
+  { id: "commandes" as const, label: "Commandes", icon: UtensilsCrossed },
+  { id: "statistiques" as const, label: "Statistiques", icon: BarChart2 },
+  { id: "menu" as const, label: "Menu", icon: BookOpen },
+  { id: "clients" as const, label: "Clients", icon: Users },
 ]
 
-const productSales = [
-  { name: "Classic Bowl", emoji: "🥗", sales: 8, percentage: 80 },
-  { name: "Boisson", emoji: "🥤", sales: 6, percentage: 60 },
-  { name: "Spicy Bowl", emoji: "🌶️", sales: 5, percentage: 50 },
-  { name: "Veggie Bowl", emoji: "🥬", sales: 3, percentage: 30 }
-]
-
-const paymentMethods = [
-  { name: "Espèces", percentage: 45, color: "#C9A84C" },
-  { name: "Carte", percentage: 35, color: "#A89968" },
-  { name: "CMI", percentage: 20, color: "#6B5B3D" }
-]
-
-type DateFilter = "aujourdhui" | "7jours" | "30jours"
-
-export function StatistiquesPage() {
-  const [dateFilter, setDateFilter] = useState<DateFilter>("aujourdhui")
-
+export function Sidebar({ activeNav, onNavChange, pendingOrders = 0 }: SidebarProps) {
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-2xl md:text-3xl text-[#C9A84C]">Statistiques</h1>
-        <div className="flex items-center gap-2 bg-[#1A160E] p-1 rounded-lg">
-          {[
-            { id: "aujourdhui" as const, label: "Aujourd'hui" },
-            { id: "7jours" as const, label: "7 jours" },
-            { id: "30jours" as const, label: "30 jours" }
-          ].map((filter) => (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="fixed left-0 top-0 h-full w-[240px] bg-[#1A160E] border-r border-[rgba(201,168,76,0.15)] hidden md:flex flex-col z-20">
+        <div className="p-6 border-b border-[rgba(201,168,76,0.15)]">
+          <h1 className="font-serif text-2xl text-[#C9A84C]">ChefPoint</h1>
+          <p className="text-[#A89968] text-xs mt-1 uppercase tracking-widest">Dashboard</p>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive = activeNav === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => onNavChange(item.id)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                  isActive
+                    ? "bg-[#C9A84C] text-[#0E0C08]"
+                    : "text-[#A89968] hover:text-[#F5EDD8] hover:bg-[rgba(201,168,76,0.1)]"
+                )}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span>{item.label}</span>
+                {item.id === "commandes" && pendingOrders > 0 && (
+                  <span className={cn(
+                    "ml-auto text-xs font-bold px-2 py-0.5 rounded-full",
+                    isActive ? "bg-[#0E0C08] text-[#C9A84C]" : "bg-[#E84A5F] text-white"
+                  )}>
+                    {pendingOrders}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-[rgba(201,168,76,0.15)]">
+          <p className="text-[#A89968] text-xs text-center">Bab el Had · Rabat</p>
+        </div>
+      </aside>
+
+      {/* Mobile Top Bar */}
+      <header className="fixed top-0 left-0 right-0 h-14 bg-[#1A160E] border-b border-[rgba(201,168,76,0.15)] flex items-center px-4 z-20 md:hidden">
+        <h1 className="font-serif text-xl text-[#C9A84C]">ChefPoint</h1>
+        {pendingOrders > 0 && (
+          <span className="ml-auto bg-[#E84A5F] text-white text-xs font-bold px-2 py-1 rounded-full">
+            {pendingOrders} en attente
+          </span>
+        )}
+      </header>
+
+      {/* Mobile Bottom Nav */}
+      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-[#1A160E] border-t border-[rgba(201,168,76,0.15)] flex items-center justify-around z-20 md:hidden">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const isActive = activeNav === item.id
+          return (
             <button
-              key={filter.id}
-              onClick={() => setDateFilter(filter.id)}
+              key={item.id}
+              onClick={() => onNavChange(item.id)}
               className={cn(
-                "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                dateFilter === filter.id
-                  ? "bg-[#C9A84C] text-[#0E0C08]"
-                  : "text-[#A89968] hover:text-[#F5EDD8]"
+                "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all",
+                isActive ? "text-[#C9A84C]" : "text-[#A89968]"
               )}
             >
-              {filter.label}
+              <div className="relative">
+                <Icon className="w-5 h-5" />
+                {item.id === "commandes" && pendingOrders > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#E84A5F] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {pendingOrders}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-medium">{item.label}</span>
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Hero Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-6">
-          <p className="text-[#A89968] text-sm uppercase tracking-wide mb-2">Chiffre d&apos;affaires</p>
-          <p className="text-[#C9A84C] text-4xl md:text-5xl font-bold">1.240 DH</p>
-          <p className="text-[#4CAF50] text-sm mt-2 flex items-center gap-1">
-            <span>↑</span> +12% vs hier
-          </p>
-        </div>
-        <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-6">
-          <p className="text-[#A89968] text-sm uppercase tracking-wide mb-2">Total commandes</p>
-          <p className="text-[#C9A84C] text-4xl md:text-5xl font-bold">18</p>
-          <p className="text-[#A89968] text-sm mt-2">moy. 69 DH/cmd</p>
-        </div>
-        <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-6">
-          <p className="text-[#A89968] text-sm uppercase tracking-wide mb-2">Best seller</p>
-          <p className="text-[#C9A84C] text-4xl font-bold flex items-center gap-3">
-            <span>Classic Bowl</span>
-            <span className="text-4xl">🥗</span>
-          </p>
-          <p className="text-[#A89968] text-sm mt-2">8 vendus</p>
-        </div>
-      </div>
-
-      {/* Revenue Chart */}
-      <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-6">
-        <h3 className="text-[#F5EDD8] text-sm uppercase tracking-wide mb-6">{"Chiffre d'affaires par heure"}</h3>
-        <div className="h-[250px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={hourlyData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <XAxis 
-                dataKey="hour" 
-                axisLine={false} 
-                tickLine={false}
-                tick={{ fill: '#A89968', fontSize: 12 }}
-              />
-              <YAxis 
-                axisLine={false} 
-                tickLine={false}
-                tick={{ fill: '#A89968', fontSize: 12 }}
-                tickFormatter={(value) => `${value} DH`}
-              />
-              <Tooltip 
-                cursor={{ fill: 'rgba(201,168,76,0.1)' }}
-                contentStyle={{ 
-                  backgroundColor: '#1A160E', 
-                  border: '1px solid rgba(201,168,76,0.3)',
-                  borderRadius: '8px',
-                  color: '#F5EDD8'
-                }}
-                formatter={(value: number) => [`${value} DH`, 'Revenus']}
-              />
-              <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                {hourlyData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`}
-                    fill={entry.revenue > 300 ? '#C9A84C' : 'rgba(201,168,76,0.5)'}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Two Column Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Sales by Product */}
-        <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-6">
-          <h3 className="text-[#F5EDD8] text-sm uppercase tracking-wide mb-6">Ventes par produit</h3>
-          <div className="space-y-4">
-            {productSales.map((product) => (
-              <div key={product.name} className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{product.emoji}</span>
-                    <span className="text-[#F5EDD8]">{product.name}</span>
-                  </div>
-                  <span className="text-[#A89968] text-sm">{product.sales} ventes</span>
-                </div>
-                <div className="h-2 bg-[#0E0C08] rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-[#C9A84C] rounded-full transition-all duration-500"
-                    style={{ width: `${product.percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Payment Methods */}
-        <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-6">
-          <h3 className="text-[#F5EDD8] text-sm uppercase tracking-wide mb-6">Modes de paiement</h3>
-          
-          {/* Visual Donut Representation */}
-          <div className="flex justify-center mb-6">
-            <div className="relative w-40 h-40">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                {paymentMethods.reduce((acc, method, index) => {
-                  const previousTotal = paymentMethods.slice(0, index).reduce((sum, m) => sum + m.percentage, 0)
-                  const circumference = 2 * Math.PI * 35
-                  const strokeDasharray = (method.percentage / 100) * circumference
-                  const strokeDashoffset = -(previousTotal / 100) * circumference
-                  
-                  acc.push(
-                    <circle
-                      key={method.name}
-                      cx="50"
-                      cy="50"
-                      r="35"
-                      fill="none"
-                      stroke={method.color}
-                      strokeWidth="20"
-                      strokeDasharray={`${strokeDasharray} ${circumference}`}
-                      strokeDashoffset={strokeDashoffset}
-                    />
-                  )
-                  return acc
-                }, [] as React.ReactNode[])}
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-[#C9A84C] text-2xl font-bold">100%</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Legend Pills */}
-          <div className="flex flex-wrap justify-center gap-3">
-            {paymentMethods.map((method) => (
-              <div 
-                key={method.name}
-                className="flex items-center gap-2 bg-[#0E0C08] px-4 py-2 rounded-full"
-              >
-                <span 
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: method.color }}
-                />
-                <span className="text-[#F5EDD8] text-sm">{method.name}</span>
-                <span className="text-[#C9A84C] text-sm font-bold">{method.percentage}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+          )
+        })}
+      </nav>
+    </>
   )
 }
