@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
-import { Pencil, ChevronDown, Plus, Loader2, X, Check } from "lucide-react"
+import { Pencil, ChevronDown, Plus, Loader2, X, Check, Trash2, ImagePlus } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 
-type Product = Database['public']['Tables']['products']['Row']
+type Product = Database['public']['Tables']['products']['Row'] & { image_url?: string }
 type Brand = Database['public']['Tables']['brands']['Row']
 type Category = "bowls" | "boissons" | "extras"
 
@@ -23,9 +23,21 @@ export function MenuPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<Product | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const emptyForm = { name: "", description: "", emoji: "🥗", price: "", weight_grams: "", category: activeCategory as Category, available: true }
   const [form, setForm] = useState(emptyForm)
+
+  const categories: { id: Category; label: string }[] = [
+    { id: "bowls", label: "Bowls" },
+    { id: "boissons", label: "Boissons" },
+    { id: "extras", label: "Extras" },
+  ]
 
   useEffect(() => { fetchBrands() }, [])
   useEffect(() => { if (activeBrand) fetchProducts(activeBrand.id) }, [activeBrand])
@@ -52,6 +64,8 @@ export function MenuPage() {
   const openAdd = () => {
     setEditingProduct(null)
     setForm({ ...emptyForm, category: activeCategory })
+    setImagePreview(null)
+    setImageFile(null)
     setShowAddModal(true)
   }
 
@@ -66,14 +80,37 @@ export function MenuPage() {
       category: product.category as Category,
       available: product.available
     })
+    setImagePreview(product.image_url || null)
+    setImageFile(null)
     setShowAddModal(true)
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = () => setImagePreview(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const uploadImage = async (productId: string): Promise<string | null> => {
+    if (!imageFile) return null
+    setUploadingImage(true)
+    const ext = imageFile.name.split('.').pop()
+    const path = `products/${productId}.${ext}`
+    const { error } = await supabase.storage.from('menu-images').upload(path, imageFile, { upsert: true })
+    setUploadingImage(false)
+    if (error) return null
+    const { data } = supabase.storage.from('menu-images').getPublicUrl(path)
+    return data.publicUrl
   }
 
   const saveProduct = async () => {
     if (!form.name || !form.price || !activeBrand) return
     setSaving(true)
 
-    const payload = {
+    const payload: any = {
       name: form.name,
       description: form.description,
       emoji: form.emoji,
@@ -85,22 +122,45 @@ export function MenuPage() {
     }
 
     if (editingProduct) {
+      // Önce güncelle
       const { data } = await supabase.from('products').update(payload).eq('id', editingProduct.id).select().single()
-      if (data) setProducts(prev => prev.map(p => p.id === editingProduct.id ? data : p))
+      if (data) {
+        // Sonra fotoğraf yükle
+        if (imageFile) {
+          const url = await uploadImage(data.id)
+          if (url) {
+            await supabase.from('products').update({ image_url: url } as any).eq('id', data.id)
+            data.image_url = url
+          }
+        }
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? data : p))
+      }
     } else {
       const { data } = await supabase.from('products').insert(payload).select().single()
-      if (data) setProducts(prev => [...prev, data])
+      if (data) {
+        if (imageFile) {
+          const url = await uploadImage(data.id)
+          if (url) {
+            await supabase.from('products').update({ image_url: url } as any).eq('id', data.id)
+            data.image_url = url
+          }
+        }
+        setProducts(prev => [...prev, data])
+      }
     }
 
     setSaving(false)
     setShowAddModal(false)
   }
 
-  const categories: { id: Category; label: string }[] = [
-    { id: "bowls", label: "Bowls" },
-    { id: "boissons", label: "Boissons" },
-    { id: "extras", label: "Extras" },
-  ]
+  const deleteProduct = async () => {
+    if (!confirmDelete) return
+    setDeleting(true)
+    await supabase.from('products').delete().eq('id', confirmDelete.id)
+    setProducts(prev => prev.filter(p => p.id !== confirmDelete.id))
+    setDeleting(false)
+    setConfirmDelete(null)
+  }
 
   const filteredProducts = products.filter(p => p.category === activeCategory)
 
@@ -118,10 +178,8 @@ export function MenuPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-3xl text-[#C9A84C]">Gestion du Menu</h1>
         <div className="relative">
-          <button
-            onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
-            className="flex items-center gap-3 bg-[#1A160E] border border-[rgba(201,168,76,0.15)] px-4 py-2.5 rounded-lg hover:border-[#C9A84C] transition-colors"
-          >
+          <button onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
+            className="flex items-center gap-3 bg-[#1A160E] border border-[rgba(201,168,76,0.15)] px-4 py-2.5 rounded-lg hover:border-[#C9A84C] transition-colors">
             <span className="text-xl">{activeBrand?.emoji}</span>
             <span className="text-[#C9A84C] font-medium">{activeBrand?.name}</span>
             <ChevronDown className={cn("w-4 h-4 text-[#A89968] transition-transform", brandDropdownOpen && "rotate-180")} />
@@ -164,8 +222,15 @@ export function MenuPage() {
           filteredProducts.map((product) => (
             <div key={product.id} className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-xl p-4 hover:border-[rgba(201,168,76,0.3)] transition-colors">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-[rgba(201,168,76,0.15)] rounded-full flex items-center justify-center text-2xl md:text-3xl flex-shrink-0">
-                  {product.emoji}
+                {/* Image or Emoji */}
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden flex-shrink-0">
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[rgba(201,168,76,0.15)] flex items-center justify-center text-2xl md:text-3xl">
+                      {product.emoji}
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-[#F5EDD8] font-bold text-base md:text-lg">{product.name}</h3>
@@ -190,10 +255,16 @@ export function MenuPage() {
                     <span className="text-[#E84A5F] text-xs font-bold uppercase bg-[#E84A5F]/20 px-2 py-0.5 rounded">Rupture de stock</span>
                   )}
                 </div>
-                <button onClick={() => openEdit(product)}
-                  className="p-2 bg-[rgba(201,168,76,0.15)] text-[#C9A84C] rounded-lg hover:bg-[rgba(201,168,76,0.25)] transition-colors flex-shrink-0">
-                  <Pencil className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setConfirmDelete(product)}
+                    className="p-2 bg-[rgba(232,74,95,0.15)] text-[#E84A5F] rounded-lg hover:bg-[rgba(232,74,95,0.25)] transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => openEdit(product)}
+                    className="p-2 bg-[rgba(201,168,76,0.15)] text-[#C9A84C] rounded-lg hover:bg-[rgba(201,168,76,0.25)] transition-colors">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))
@@ -209,9 +280,8 @@ export function MenuPage() {
 
       {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-2xl w-full max-w-md space-y-5 p-6">
-            {/* Modal Header */}
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#1A160E] border border-[rgba(201,168,76,0.15)] rounded-2xl w-full max-w-md space-y-5 p-6 my-4">
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-xl text-[#C9A84C]">
                 {editingProduct ? "Modifier le produit" : "Nouveau produit"}
@@ -221,9 +291,37 @@ export function MenuPage() {
               </button>
             </div>
 
+            {/* Photo Upload */}
+            <div>
+              <label className="text-[#A89968] text-xs uppercase tracking-wide mb-2 block">Photo</label>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
+              <button onClick={() => fileInputRef.current?.click()}
+                className="w-full h-32 border-2 border-dashed border-[rgba(201,168,76,0.3)] rounded-xl overflow-hidden hover:border-[#C9A84C] transition-colors relative">
+                {imagePreview ? (
+                  <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full gap-2 text-[#A89968]">
+                    <ImagePlus className="w-8 h-8" />
+                    <span className="text-sm">Ajouter une photo</span>
+                  </div>
+                )}
+                {uploadingImage && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#C9A84C]" />
+                  </div>
+                )}
+              </button>
+              {imagePreview && (
+                <button onClick={() => { setImagePreview(null); setImageFile(null) }}
+                  className="mt-2 text-[#E84A5F] text-xs flex items-center gap-1 hover:underline">
+                  <X className="w-3 h-3" /> Supprimer la photo
+                </button>
+              )}
+            </div>
+
             {/* Emoji Picker */}
             <div>
-              <label className="text-[#A89968] text-xs uppercase tracking-wide mb-2 block">Emoji</label>
+              <label className="text-[#A89968] text-xs uppercase tracking-wide mb-2 block">Emoji (si pas de photo)</label>
               <div className="flex flex-wrap gap-2">
                 {EMOJIS.map(e => (
                   <button key={e} onClick={() => setForm(f => ({ ...f, emoji: e }))}
@@ -287,6 +385,29 @@ export function MenuPage() {
               {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
               {saving ? "Enregistrement..." : editingProduct ? "Modifier" : "Ajouter"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1A160E] border border-[rgba(232,74,95,0.3)] rounded-2xl w-full max-w-sm p-6 space-y-4">
+            <h2 className="font-serif text-xl text-[#E84A5F]">Supprimer le produit ?</h2>
+            <p className="text-[#A89968]">
+              <span className="text-[#F5EDD8] font-medium">{confirmDelete.name}</span> sera définitivement supprimé.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDelete(null)}
+                className="flex-1 py-3 bg-[#0E0C08] border border-[rgba(201,168,76,0.15)] text-[#A89968] rounded-xl hover:text-[#F5EDD8] transition-colors">
+                Annuler
+              </button>
+              <button onClick={deleteProduct} disabled={deleting}
+                className="flex-1 py-3 bg-[#E84A5F] text-white font-bold rounded-xl hover:bg-[#D03A4F] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {deleting ? "Suppression..." : "Supprimer"}
+              </button>
+            </div>
           </div>
         </div>
       )}
